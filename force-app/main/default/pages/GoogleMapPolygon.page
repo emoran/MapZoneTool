@@ -1,0 +1,583 @@
+<apex:page showHeader="false" standardStylesheets="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" docType="html-5.0" controller="GoogleMapPolygonController">
+    <head>
+        <style>
+            #map-canvas {
+                width:100%;
+                height:600px;
+            }
+            #map_canvas {
+                width:100%;
+                height:600px;
+            }
+            #fd_map{
+                width:100%;
+                height:600px;
+            }
+            </style>
+
+            <apex:stylesheet value="{!$Resource.sweetalert2css}"/>
+        </head>
+    <apex:slds />
+    <div class="slds-scope">        
+        <article class="slds-card">
+            <div class="slds-card__header slds-grid">
+                <header class="slds-media slds-media_center slds-has-flexi-truncate">
+                <div class="slds-media__figure">
+                    <span class="slds-icon_container slds-icon-standard-account" title="account">
+                        <svg aria-hidden="true" class="slds-icon slds-icon--small">
+                            <use xmlns:xlink="http://www.w3.org/2000/xlink" 
+                                xlink:href="/apexpages/slds/latest/assets/icons/standard-sprite/svg/symbols.svg#address">
+                            </use>
+                        </svg>
+                    <span class="slds-assistive-text"></span>
+                    </span>
+                </div>
+                <div class="slds-media__body">Group and Zones</div>
+                <div class="slds-no-flex">
+                    <button class="slds-button slds-button_neutral" id="newZone">New Zone</button>
+                </div>
+                <div class="slds-no-flex">
+                    <button class="slds-button slds-button_neutral" id="update">Update</button>
+                </div>
+                </header>
+            </div>
+            <div class="slds-card__body slds-card__body_inner">
+                
+                <div class="slds-grid slds-wrap slds-text-align_center custom-container">
+                    <div class="slds-size_1-of-2 slds-max-small-size_1-of-2">
+                        <!-- MAP -->
+                        <div class="slds-map_container">
+                            <div id="fd_map"> </div>
+                        </div>
+                    </div>
+                    <div class="slds-size_1-of-2 slds-max-small-size_1-of-1">
+                        <article class="slds-card">
+                            <div class="slds-card__body slds-card__body_inner">
+                                <div class="slds-size_1-of-2 slds-max-small-size_1-of-1">
+                                   
+                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered" aria-labelledby="element-with-table-label other-element-with-table-label">
+                                        <thead>
+                                          <tr class="slds-line-height_reset">
+                                            <th class="" scope="col">
+                                              <div class="slds-truncate" title="Opportunity Name">Name</div>
+                                            </th>
+                                            <th class="" scope="col">
+                                                <div class="slds-truncate" title="Opportunity Name">Created Date</div>
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody class="grouplist">
+                                         
+                                        </tbody>
+                                      </table>
+                                </div>
+                            </div>
+                            
+                        </article>
+                    </div>
+                </div>
+            </div>
+            
+        </article>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+    <script src="https://malsup.github.io/jquery.blockUI.js"/>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC87fftpSPt2ttOpm3kvzwdfyOmZX9Mu9A&amp&v=3.exp&libraries=drawing&libraries=geometry&libraries=places"></script>
+    <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+
+    <script>
+        var myLatLng = null;
+        $(document).ready(function () {
+            console.log('Init');
+            //loadGoogleMap('','','init','');
+            loadZones();
+        });
+
+
+        function loadGoogleMap(id, origin, groupName, polygon) {
+            var data;
+            var dataFeatures;
+
+           
+            if (polygon != '') {
+                data = Base64.decode(polygon);
+                dataFeatures = JSON.parse(data);
+            }
+
+            selectedGroupId = id;
+            groupNameGlobal = groupName;
+
+
+            console.log('LATLONG --- ' + JSON.stringify(dataFeatures));
+            myLatLng = null;
+            if (typeof dataFeatures !== 'undefined'){
+               
+                myLatLng = new google.maps.LatLng({ lat: dataFeatures[0].geometry.coordinates[0][0][1], lng:dataFeatures[0].geometry.coordinates[0][0][0] }); 
+            }
+            else{
+                dataFeatures = [];
+                myLatLng = new google.maps.LatLng({ lat: 40.7471499, lng: -73.9863651});
+            }
+
+            if (origin == 'master') {
+                google.maps.event.clearInstanceListeners(window);
+                google.maps.event.clearInstanceListeners(document);
+
+                map = new google.maps.Map(document.getElementById('fd_map'), {
+                    center: myLatLng,
+                    zoom: 13,
+                    styles: [{ "featureType": "administrative", "elementType": "all", "stylers": [{ "visibility": "on" }, { "saturation": -100 }, { "lightness": 20 }] }, { "featureType": "road", "elementType": "all", "stylers": [{ "visibility": "on" }, { "saturation": -100 }, { "lightness": 40 }] }, { "featureType": "water", "elementType": "all", "stylers": [{ "visibility": "on" }, { "saturation": -10 }, { "lightness": 30 }] }, { "featureType": "landscape.man_made", "elementType": "all", "stylers": [{ "visibility": "simplified" }, { "saturation": -60 }, { "lightness": 10 }] }, { "featureType": "landscape.natural", "elementType": "all", "stylers": [{ "visibility": "simplified" }, { "saturation": -60 }, { "lightness": 60 }] }, { "featureType": "poi", "elementType": "all", "stylers": [{ "visibility": "off" }, { "saturation": -100 }, { "lightness": 60 }] }, { "featureType": "transit", "elementType": "all", "stylers": [{ "visibility": "off" }, { "saturation": -100 }, { "lightness": 60 }] }],
+                    streetViewControl: false,
+                    disableDefaultUI: true,
+                    mapId: 'DEMO_MAP_ID'
+                });
+            }
+            else if (origin == 'detail') {
+                google.maps.event.clearInstanceListeners(window);
+                google.maps.event.clearInstanceListeners(document);
+
+                map = new google.maps.Map(document.getElementById('fd_map'), {
+                    center: myLatLng,
+                    zoom: 13
+                });
+            }
+
+            var imported = {
+                type: "FeatureCollection",
+                features: dataFeatures != null ? dataFeatures : []
+            };
+
+            map.data.addGeoJson(imported);
+            map.data.setControls(['Polygon']);
+
+            map.data.setStyle({
+                editable: true,
+                draggable: false
+            });
+
+            bindDataLayerListeners(map.data);
+
+            //autocomplete = new google.maps.places.Autocomplete(input);
+            //loadAutocomplete();//Adding autocomplete control to map
+
+            $('#pac-card').show();
+            $('#initialmessage').hide();
+        }
+
+        $(document).on('click', '#update', function () {
+
+            var geoJson = null;
+            
+            map.data.toGeoJson(function (geojsonGeometry) {
+                geoJson = JSON.stringify(geojsonGeometry.features);
+                console.log('----->' + geoJson);
+
+                var GroupZoneWrapper = {
+                    id: selectedGroupId,
+                    googleGeolocation: geoJson
+                }
+
+                console.log('BEFORE SEND TO SAVE: ' + JSON.stringify(GroupZoneWrapper));
+
+
+                GoogleMapPolygonController.updateGroupZone(GroupZoneWrapper, function (result, event) {
+                    if (event.status) {
+                       
+                        var response = JSON.parse(result.replace(/(&quot\;)/g, "\""));
+
+                        console.log('Response: ' + JSON.stringify(response));
+
+                        Swal.fire({
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Zone updated',
+                            showConfirmButton: false,
+                            timer: 1500
+                        });
+
+                        loadZones();
+                    }
+                });
+            });
+
+            console.log('GEOSON:  ' + geoJson);
+
+
+            });
+
+        
+
+        function loadZones(){
+            GoogleMapPolygonController.getGroupZones(function (result, event) {
+                if (event.status) {
+                    var groupZoneList = JSON.parse(result.replace(/(&quot\;)/g, "\""));
+
+                    //console.log('groupZoneList: ' + JSON.stringify(groupZoneList));
+                    var tableRow = '';
+
+                    $.each(groupZoneList, function (index, value) {
+
+                        var date_info = new Date(value.CreatedDate);
+
+                        var encodedString = value.Polygon__c != null ? Base64.encode(value.Polygon__c) : '';
+                        if (encodedString != '') { hasPolygon = true; } else { hasPolygon = false; }
+                        tableRow += '<tr class="slds-hint-parent ">';                                            
+                        tableRow += '<td>';
+                        tableRow += '	<div class="slds-truncate" title="">';
+                        tableRow += '		<a href="#" onclick="loadGroupDetails(\'' + value.Id + '\',\'' + encodedString + '\',\'' + value.Name + '\')">' + value.Name + '</a>';
+                        tableRow += '	</div>';
+                        tableRow += '</td>';
+                        tableRow += '<td role="gridcell">';
+                        tableRow += '	<div class="slds-truncate" title="Company One">' + date_info.toString('yyyy-MM-dd') +'</div>';
+                        tableRow += '</td>';
+                        tableRow += '</tr>';
+                    });
+
+                    $('.grouplist').empty();
+                    $('.grouplist').append(tableRow);
+                    //$.unblockUI();
+                }
+                else {
+                    console.log('Error');
+                }
+            });
+        }
+
+
+        function loadGroupDetails(id, polygon, groupName) {
+            var data;
+            var dataFeatures;
+
+            loadGoogleMap(id, 'master', groupName, polygon);
+
+            //console.log('CURRENT POLYGON:' + polygon);
+
+            if (polygon != '') {
+                data = Base64.decode(polygon);
+                dataFeatures = JSON.parse(data);
+                //loadPolygoninMap(dataFeatures);
+            }
+
+            showAccountMarkers();
+        }
+
+        $(document).on('click', '#newZone', function () {
+            Swal.fire({
+            title: 'Zone Name',
+            input: 'text',
+            inputAttributes: {
+                autocapitalize: 'off'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Create new zone',
+            showLoaderOnConfirm: true,
+            preConfirm: (login) => {
+              console.log('here the zone Name:'+ login);
+
+            var groupZoneWrapper = {
+			    name:login
+		    }
+
+            GoogleMapPolygonController.saveGroupZone(groupZoneWrapper, function (result, event) {
+                if (event.status) {} });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+            }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Zone record saved',
+                    showConfirmButton: false,
+                    timer: 1500
+                })
+
+                loadZones();
+            }
+            })
+        });
+
+        function bindDataLayerListeners(dataLayer) {
+	        dataLayer.addListener('addfeature', addfeature);
+	        dataLayer.addListener('setgeometry', setGeometry);
+        }
+
+        function addfeature() {
+            console.log('Addfeature funtion');
+
+            map.data.toGeoJson(function (geojsonGeometry) {
+                console.log('FEATURES: ' + JSON.stringify(geojsonGeometry.features));
+                loadPolygoninMap(geojsonGeometry.features, true);
+            });
+
+        }
+
+        function setGeometry() {
+            console.log('Set Geometry');
+            map.data.toGeoJson(function (geojsonGeometry) {
+                //loadPolygoninMap(geojsonGeometry.features,true);
+
+                var paths = [];
+                var exteriorDirection;
+                var interiorDirection;
+
+                console.log('geojsonGeometry.features: ' + JSON.stringify(geojsonGeometry.features));
+
+                $.each(geojsonGeometry.features, function (index, value) {
+
+                    //loop over coordenates
+                    for (var i = 0; i < value.geometry.coordinates.length; i++) {
+                        var path = [];
+
+                        //getting lat long
+                        for (var j = 0; j < value.geometry.coordinates[i].length; j++) {
+                            var latlong = new google.maps.LatLng(value.geometry.coordinates[i][j][1], value.geometry.coordinates[i][j][0]);
+                            path.push(latlong);
+                        }
+
+                        if (!i) {
+                            exteriorDirection = _ccw(path);
+                            paths.push(path);
+                        } else if (i == 1) {
+                            interiorDirection = _ccw(path);
+                            if (exteriorDirection == interiorDirection) {
+                                paths.push(path.reverse());
+                            } else {
+                                paths.push(path);
+                            }
+                        } else {
+                            if (exteriorDirection == interiorDirection) {
+                                paths.push(path.reverse());
+                            } else {
+                                paths.push(path);
+                            }
+                        }
+                    }
+
+                });
+
+                var polygon = new google.maps.Polygon({
+                    strokeWeight: 4,
+                    strokeColor: '#006699',
+                    editable: true,
+                    draggable: false,
+                    paths: paths
+                });
+
+                findAccounts(polygon);
+            });
+        }
+
+        function loadPolygoninMap(featuresArray, newpolygon) {
+
+            var paths = [];
+            var exteriorDirection;
+            var interiorDirection;
+
+            $.each(featuresArray, function (index, value) {
+
+                //loop over coordenates
+                for (var i = 0; i < value.geometry.coordinates.length; i++) {
+                    var path = [];
+
+                    //getting lat long
+                    for (var j = 0; j < value.geometry.coordinates[i].length; j++) {
+                        var latlong = new google.maps.LatLng(value.geometry.coordinates[i][j][1], value.geometry.coordinates[i][j][0]);
+                        path.push(latlong);
+                    }
+
+                    if (!i) {
+                        exteriorDirection = _ccw(path);
+                        paths.push(path);
+                    } else if (i == 1) {
+                        interiorDirection = _ccw(path);
+                        if (exteriorDirection == interiorDirection) {
+                            paths.push(path.reverse());
+                        } else {
+                            paths.push(path);
+                        }
+                    } else {
+                        if (exteriorDirection == interiorDirection) {
+                            paths.push(path.reverse());
+                        } else {
+                            paths.push(path);
+                        }
+                    }
+                }
+
+            });
+
+            var polygon = new google.maps.Polygon({
+                strokeWeight: 4,
+                strokeColor: '#006699',
+                editable: true,
+                draggable: false,
+                paths: paths
+            });
+
+            //map.getBoundsZoomLevel(polygon.getBounds())
+
+            map.setZoom(15);
+
+            //if(newpolygon == true){
+           // findAccounts(polygon);
+            //}
+            //else{
+            polygon.setMap(map);//load the polygon in the map
+            //}
+
+            polygon.getPaths().forEach(function (path, index) {
+                google.maps.event.addListener(path, 'insert_at', function () {
+                    console.log('insert at');
+                });
+
+                google.maps.event.addListener(path, 'remove_at', function () {
+                    console.log('move at');
+                    findAccounts(polygon);
+                });
+
+                google.maps.event.addListener(path, 'set_at', function () {
+                    console.log('Set at');
+                    //map.data.addGeoJson(path);
+                    findAccounts(polygon);
+                });
+            });
+        }
+
+        function findAccounts(polygon) {
+            var markerCnt = 0;
+            var markersInPolygon = [];
+
+
+            console.log('markers.length'+markers.length);
+
+            for (var i = 0; i < markers.length; i++) {
+                if (typeof markers[i].getPosition() !== "undefined") {
+
+                    if (google.maps.geometry.poly != null || typeof google.maps.geometry.poly === 'undefined') {
+                        if (google.maps.geometry.poly.containsLocation(markers[i].getPosition(), polygon)) {
+                            markerCnt++;
+                            markersInPolygon.push(markers[i]);
+                        }
+
+                        var accounts = '<ul>';
+                        var groupAccountArray = [];
+                        $.each(markersInPolygon, function (index, value) {
+
+                            var groupAccountRecord = {
+                                cloudmobile__account_key__c: value.get("id") + selectedGroupId,
+                                cloudmobile__Account__c: value.get("id"),
+                                cloudmobile__Group_Zone__c: selectedGroupId
+                            };
+
+                            groupAccountArray.push(groupAccountRecord)
+
+                            accounts += '<p><b>' + value.title + '</b></p>'
+                        });
+
+                        accounts += '</ul>';
+
+                        if (markerCnt > 0) {
+                            Swal.fire({
+                                title: markerCnt + "Entities Identified",
+                                text: "We have found these entoties :<br/>" + accounts + ". Do you want to add them as part of this group?",
+                                showCancelButton: true,
+                                confirmButtonColor: "#DD6B55",
+                                confirmButtonText: "Add Entity",
+                                html: true
+                            },
+                            function () {
+
+                                    console.log('saving accounts');
+                                    // cloudmobile.Fieldeye_Settings_Controller.saveGroupAccounts(groupAccountArray, function (result, event) {
+                                    //     if (event.status) {
+                                    //         $("#update").trigger("click");
+                                    //         swal("Agregadas!", "Se agregaron las cuentas al grupo", "success");
+                                    //         console.log(JSON.stringify(result));
+                                    //     }
+                                    //     else {
+                                    //         console.log('error');
+                                    //     }
+                                    // });
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+
+        function showAccountMarkers() {
+            console.log('Account markers');
+            markers = [];
+            GoogleMapPolygonController.getAccountRecords(function (result, event) {
+                if (event.status) {
+                    var response = result.replace(/(&quot\;)/g, "\"");
+
+                    
+
+                    var accounts = JSON.parse(result.replace(/(&quot\;)/g, "\""));
+
+                    $.each(accounts, function (index, value) {
+                        
+                        if (value.geolocation__Latitude__s != null && value.geolocation__Longitude__s != null){
+
+                           
+                            var myLatLng = { lat: value.geolocation__Latitude__s, lng: value.geolocation__Longitude__s };
+                            console.log('set LNG' + JSON.stringify(myLatLng));
+                            
+                            var icon = 'https://img.icons8.com/ios/50/000000/pointer-filled.png';
+                            
+                            const beachFlagImg = document.createElement('img');
+                            beachFlagImg.src = 'https://developers.google.com/maps/documentation/javascript/examples/full/images/beachflag.png';
+
+                           
+                            
+                            
+                            var marker = new google.maps.Marker({
+                                position: myLatLng,
+                                map: map,
+                                animation: google.maps.Animation.DROP,
+                                title: value.Name,
+                                icon: icon
+                            });
+
+                            marker.set("id", value.Id);
+                            markers.push(marker);
+                            const markerCluster = new markerClusterer.MarkerClusterer({ map, markers });
+                            $.unblockUI();
+                        } 
+                    });
+
+                    
+                }
+                else {
+                    console.log('Error loading markers');
+                }
+            });
+
+        }
+
+
+
+
+        var Base64 = { _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=", encode: function (e) { var t = ""; var n, r, i, s, o, u, a; var f = 0; e = Base64._utf8_encode(e); while (f < e.length) { n = e.charCodeAt(f++); r = e.charCodeAt(f++); i = e.charCodeAt(f++); s = n >> 2; o = (n & 3) << 4 | r >> 4; u = (r & 15) << 2 | i >> 6; a = i & 63; if (isNaN(r)) { u = a = 64 } else if (isNaN(i)) { a = 64 } t = t + this._keyStr.charAt(s) + this._keyStr.charAt(o) + this._keyStr.charAt(u) + this._keyStr.charAt(a) } return t }, decode: function (e) { var t = ""; var n, r, i; var s, o, u, a; var f = 0; e = e.replace(/[^A-Za-z0-9\+\/\=]/g, ""); while (f < e.length) { s = this._keyStr.indexOf(e.charAt(f++)); o = this._keyStr.indexOf(e.charAt(f++)); u = this._keyStr.indexOf(e.charAt(f++)); a = this._keyStr.indexOf(e.charAt(f++)); n = s << 2 | o >> 4; r = (o & 15) << 4 | u >> 2; i = (u & 3) << 6 | a; t = t + String.fromCharCode(n); if (u != 64) { t = t + String.fromCharCode(r) } if (a != 64) { t = t + String.fromCharCode(i) } } t = Base64._utf8_decode(t); return t }, _utf8_encode: function (e) { e = e.replace(/\r\n/g, "\n"); var t = ""; for (var n = 0; n < e.length; n++) { var r = e.charCodeAt(n); if (r < 128) { t += String.fromCharCode(r) } else if (r > 127 && r < 2048) { t += String.fromCharCode(r >> 6 | 192); t += String.fromCharCode(r & 63 | 128) } else { t += String.fromCharCode(r >> 12 | 224); t += String.fromCharCode(r >> 6 & 63 | 128); t += String.fromCharCode(r & 63 | 128) } } return t }, _utf8_decode: function (e) { var t = ""; var n = 0; var r = c1 = c2 = 0; while (n < e.length) { r = e.charCodeAt(n); if (r < 128) { t += String.fromCharCode(r); n++ } else if (r > 191 && r < 224) { c2 = e.charCodeAt(n + 1); t += String.fromCharCode((r & 31) << 6 | c2 & 63); n += 2 } else { c2 = e.charCodeAt(n + 1); c3 = e.charCodeAt(n + 2); t += String.fromCharCode((r & 15) << 12 | (c2 & 63) << 6 | c3 & 63); n += 3 } } return t } }
+        var _ccw = function (path) {
+            var isCCW;
+            var a = 0;
+            for (var i = 0; i < path.length - 2; i++) {
+                a += ((path[i + 1].lat() - path[i].lat()) * (path[i + 2].lng() - path[i].lng()) - (path[i + 2].lat() - path[i].lat()) * (path[i + 1].lng() - path[i].lng()));
+            }
+            if (a > 0) {
+                isCCW = true;
+            }
+            else {
+                isCCW = false;
+            }
+            return isCCW;
+        };
+    </script>
+</apex:page> 
