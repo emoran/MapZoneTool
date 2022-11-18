@@ -1,0 +1,24 @@
+<template>
+
+    <lightning-card>
+        <h3 slot="title">
+            <lightning-icon icon-name="utility:connected_apps" size="small"></lightning-icon>
+            Zones
+        </h3>
+        <div class="slds-no-flex">
+            <button class="slds-button slds-button_neutral" id="newZone">New Zone</button>
+        </div>
+        <div class="slds-no-flex">
+            <button class="slds-button slds-button_neutral" id="update">Update</button>
+        </div>
+     
+        <p class="slds-p-horizontal_small">
+            <lightning-datatable data={zoneList} columns={columns} key-field="Id" onrowaction={navigateToEditAccountPage}>
+            </lightning-datatable>
+            <template if:true={error}>
+                {error}
+            </template>
+        </p>
+    </lightning-card>
+   
+</template>

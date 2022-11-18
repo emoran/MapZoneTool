@@ -18,67 +18,14 @@
             <apex:stylesheet value="{!$Resource.sweetalert2css}"/>
         </head>
     <apex:slds />
+    <apex:includeLightning/>
     <div class="slds-scope">        
-        <article class="slds-card">
-            <div class="slds-card__header slds-grid">
-                <header class="slds-media slds-media_center slds-has-flexi-truncate">
-                <div class="slds-media__figure">
-                    <span class="slds-icon_container slds-icon-standard-account" title="account">
-                        <svg aria-hidden="true" class="slds-icon slds-icon--small">
-                            <use xmlns:xlink="http://www.w3.org/2000/xlink" 
-                                xlink:href="/apexpages/slds/latest/assets/icons/standard-sprite/svg/symbols.svg#address">
-                            </use>
-                        </svg>
-                    <span class="slds-assistive-text"></span>
-                    </span>
-                </div>
-                <div class="slds-media__body">Group and Zones</div>
-                <div class="slds-no-flex">
-                    <button class="slds-button slds-button_neutral" id="newZone">New Zone</button>
-                </div>
-                <div class="slds-no-flex">
-                    <button class="slds-button slds-button_neutral" id="update">Update</button>
-                </div>
-                </header>
-            </div>
-            <div class="slds-card__body slds-card__body_inner">
-                
-                <div class="slds-grid slds-wrap slds-text-align_center custom-container">
-                    <div class="slds-size_1-of-2 slds-max-small-size_1-of-2">
-                        <!-- MAP -->
-                        <div class="slds-map_container">
-                            <div id="fd_map"> </div>
-                        </div>
-                    </div>
-                    <div class="slds-size_1-of-2 slds-max-small-size_1-of-1">
-                        <article class="slds-card">
-                            <div class="slds-card__body slds-card__body_inner">
-                                <div class="slds-size_1-of-2 slds-max-small-size_1-of-1">
-                                   
-                                    <table class="slds-table slds-table_cell-buffer slds-table_bordered" aria-labelledby="element-with-table-label other-element-with-table-label">
-                                        <thead>
-                                          <tr class="slds-line-height_reset">
-                                            <th class="" scope="col">
-                                              <div class="slds-truncate" title="Opportunity Name">Name</div>
-                                            </th>
-                                            <th class="" scope="col">
-                                                <div class="slds-truncate" title="Opportunity Name">Created Date</div>
-                                            </th>
-                                          </tr>
-                                        </thead>
-                                        <tbody class="grouplist">
-                                         
-                                        </tbody>
-                                      </table>
-                                </div>
-                            </div>
-                            
-                        </article>
-                    </div>
-                </div>
-            </div>
-            
-        </article>
+        <div id="lightning" />
+
+        <div class="slds-map_container">
+            <div id="fd_map"> </div>
+        </div>
+       
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -89,17 +36,56 @@
     <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 
     <script>
+
+
+
+        // Load the MessageChannel token in a variable
+        var SAMPLEMC = "{!$MessageChannel.gmapCommunication__c}";
+        var subscriptionToMC;
+        // Display message in the textarea field
+        
+        function onMCPublished(message) {
+           //console.log('!!onPublished: '+ JSON.stringify(message));
+           
+           var encodedString = message.polygon != null ? Base64.encode(message.polygon) : '';
+
+           console
+           
+           loadGroupDetails(message.recordId,encodedString,message.name);
+        }
+
+        function subscribeMC() {
+            if (!subscriptionToMC) {
+                
+                subscriptionToMC = sforce.one.subscribe(SAMPLEMC, onMCPublished);
+
+                console.log('Subscribed to channel.');
+            }
+        }
+
+        function unsubscribeMC() {
+            if (subscriptionToMC) {
+                sforce.one.unsubscribe(subscriptionToMC);
+                subscriptionToMC = null;
+            }
+        }
+
+
+
         var myLatLng = null;
         $(document).ready(function () {
             console.log('Init');
+            subscribeMC();
             //loadGoogleMap('','','init','');
-            loadZones();
+            //loadZones();
         });
 
 
         function loadGoogleMap(id, origin, groupName, polygon) {
             var data;
             var dataFeatures;
+
+            console.log('polygon===>'+polygon);
 
            
             if (polygon != '') {
@@ -253,7 +239,7 @@
 
             loadGoogleMap(id, 'master', groupName, polygon);
 
-            //console.log('CURRENT POLYGON:' + polygon);
+            console.log('CURRENT POLYGON:' + polygon);
 
             if (polygon != '') {
                 data = Base64.decode(polygon);

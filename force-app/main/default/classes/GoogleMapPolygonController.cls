@@ -1,7 +1,15 @@
-global with sharing class GoogleMapPolygonController {
+global  class GoogleMapPolygonController {
     public GoogleMapPolygonController() {
 
     }
+
+
+	@AuraEnabled(cacheable=true)
+	global static List<Zone__c> getZones(){
+		return [Select Id,Name,CreatedDate,Polygon__c  	
+								from Zone__c 
+								order by CreatedDate DESC];
+	}
 
     @RemoteAction
 	global static String getGroupZones(){
